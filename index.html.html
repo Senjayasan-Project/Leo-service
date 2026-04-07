@@ -335,9 +335,31 @@ tr:hover td{background:var(--bg3)}
         <div class="chart-box"><div class="ctitle">Status Proyek</div><div class="donut-wrap"><canvas id="donut" width="90" height="90"></canvas><div class="legend" id="donut-leg"></div></div></div>
       </div>
       <div class="chart-box"><div class="ctitle">Durasi Penanganan (hari)</div><div id="ch-dur" style="margin-top:10px"></div></div>
+          <!-- KALKULASI GAJI TEKNISI -->
+      <div class="section" style="margin-top:14px">
+        <div class="sec-head">
+          <span class="sec-title">Kalkulasi Gaji Teknisi</span>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <label style="font-size:11px;color:var(--text2);font-weight:600">Periode:</label>
+            <input type="month" id="gaji-bulan" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit" onchange="renderGajiTeknisi()">
+          </div>
+        </div>
+        <div style="padding:12px 14px;background:var(--green-light);border-bottom:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--green-dark);font-weight:600;margin-bottom:6px">Tarif Upah per Prioritas Pekerjaan (proyek selesai/lunas)</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <div><label style="font-size:10px;font-weight:600;color:var(--text2)">Normal (Rp)</label>
+              <input type="number" id="tarif-normal" value="50000" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;margin-top:3px" oninput="renderGajiTeknisi()"></div>
+            <div><label style="font-size:10px;font-weight:600;color:var(--text2)">Tinggi (Rp)</label>
+              <input type="number" id="tarif-tinggi" value="75000" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;margin-top:3px" oninput="renderGajiTeknisi()"></div>
+            <div><label style="font-size:10px;font-weight:600;color:var(--text2)">Mendesak (Rp)</label>
+              <input type="number" id="tarif-mendesak" value="100000" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;margin-top:3px" oninput="renderGajiTeknisi()"></div>
+          </div>
+        </div>
+        <div id="gaji-table" style="padding:4px 0"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="exp-btn excel" onclick="exportAnalitikExcel()">⬇ Analitik Excel</button>
-        <button class="exp-btn pdf" onclick="exportAnalitikPDF()">⬇ Laporan PDF</button>
+        <button class="exp-btn excel" onclick="exportAnalitikExcel()">&#8595; Analitik Excel</button>
+        <button class="exp-btn pdf" onclick="exportAnalitikPDF()">&#8595; Laporan PDF</button>
       </div>
     </div>
   </div>
@@ -921,6 +943,8 @@ async function setStatus(id,status){
     await sbUpsert('projects', updateObj);
     hideLoading();
     showToast('Status diperbarui: '+status);
+    // Reload dari Supabase agar sync dengan semua user
+    await loadProjects();
     showDetail(id);
   } catch(e){hideLoading();showToast('Gagal terhubung.','error');}
   renderTable();renderTable2();updateMetrics();
@@ -1165,14 +1189,24 @@ async function saveTech(){
   if(!currentTechEdit&&!pin){alert('PIN wajib diisi untuk pengguna baru');return;}
   if(pin&&pin!==pin2){alert('Konfirmasi PIN tidak cocok');return;}
   if(pin&&(pin.length<4)){alert('PIN minimal 4 digit');return;}
-  var obj={id:currentTechEdit||genId(),name:name,role:document.getElementById('t-role').value,spec:document.getElementById('t-spec').value.trim(),phone:document.getElementById('t-phone').value.trim()};
+  var newRole=document.getElementById('t-role').value;
+  var obj={id:currentTechEdit||genId(),name:name,role:newRole,spec:document.getElementById('t-spec').value.trim(),phone:document.getElementById('t-phone').value.trim()};
   if(pin)obj.pin=pin;
   showLoading('Menyimpan pengguna...');
   try{
     var res=await sbUpsert('technicians',obj);
     hideLoading();
-    if(Array.isArray(res)||(res&&res.id)){closeModal('ov-tech');await loadTechs();renderTechList();showToast('Pengguna disimpan.');}
-    else showToast('Gagal: '+(res.message||'error'),'error');
+    if(Array.isArray(res)||(res&&res.id)){
+      closeModal('ov-tech');
+      await loadTechs();
+      renderTechList();
+      if(currentTechEdit && currentUser && currentUser.id===currentTechEdit){
+        currentUser.role=newRole; currentUser.name=name; currentUser.spec=obj.spec;
+        sessionStorage.setItem('sr_user',JSON.stringify(currentUser));
+        applyRoleUI();
+      }
+      showToast('Pengguna disimpan ('+{teknisi:'Teknisi',staff:'Staff/Kasir',admin:'Admin'}[newRole]+')');
+    }else showToast('Gagal: '+(res.message||'error'),'error');
   }catch(e){hideLoading();showToast('Gagal terhubung.','error');}
 }
 
@@ -1214,6 +1248,65 @@ function renderTechList(){
 }
 
 // ============================================================
+// KALKULASI GAJI TEKNISI
+// ============================================================
+function renderGajiTeknisi(){
+  var bulanEl=document.getElementById('gaji-bulan');
+  if(!bulanEl)return;
+  var period=bulanEl.value;
+  var tarifN=parseFloat(document.getElementById('tarif-normal').value)||50000;
+  var tarifT=parseFloat(document.getElementById('tarif-tinggi').value)||75000;
+  var tarifM=parseFloat(document.getElementById('tarif-mendesak').value)||100000;
+
+  var techs=technicians.filter(function(t){return t.role==='teknisi'});
+  if(!techs.length){document.getElementById('gaji-table').innerHTML='<div class="empty">Belum ada teknisi.</div>';return;}
+
+  var rows=techs.map(function(t){
+    var ps=projects.filter(function(p){
+      if(p.tech!==t.name)return false;
+      if(p.status!=='Selesai'&&p.status!=='Lunas')return false;
+      if(period&&p.done_at&&!p.done_at.startsWith(period))return false;
+      if(!p.done_at)return false;
+      return true;
+    });
+    var normal=ps.filter(function(p){return(p.priority||'Normal')==='Normal'}).length;
+    var tinggi=ps.filter(function(p){return p.priority==='Tinggi'}).length;
+    var mendesak=ps.filter(function(p){return p.priority==='Mendesak'}).length;
+    var total=ps.length;
+    var gaji=(normal*tarifN)+(tinggi*tarifT)+(mendesak*tarifM);
+    var init=t.name.split(' ').map(function(w){return w[0]}).join('').slice(0,2).toUpperCase();
+    return {t:t,init:init,bg:roleBg[t.role]||'#eef',col:roleCol[t.role]||'#333',
+            normal:normal,tinggi:tinggi,mendesak:mendesak,total:total,gaji:gaji};
+  }).sort(function(a,b){return b.gaji-a.gaji});
+
+  var totalGajiAll=rows.reduce(function(s,r){return s+r.gaji},0);
+  var periodLabel=period?(' — '+period):'(Semua periode)';
+
+  var html='<div style="padding:8px 14px;font-size:11px;color:var(--text3)">'+
+    'Tarif: Normal='+fmtRp(tarifN)+' | Tinggi='+fmtRp(tarifT)+' | Mendesak='+fmtRp(tarifM)+periodLabel+'</div>'+
+    '<table><thead><tr>'+
+    '<th>Teknisi</th><th style="text-align:center">Normal</th><th style="text-align:center">Tinggi</th>'+
+    '<th style="text-align:center">Mendesak</th><th style="text-align:center">Total Job</th>'+
+    '<th style="text-align:right;color:var(--green-dark)">Est. Gaji</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html+='<tr>'+
+      '<td><div style="display:flex;align-items:center;gap:8px">'+
+      '<div style="width:28px;height:28px;border-radius:50%;background:'+r.bg+';color:'+r.col+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">'+r.init+'</div>'+
+      '<span style="font-weight:600">'+r.t.name+'</span></div></td>'+
+      '<td style="text-align:center"><span class="badge b-pend">'+r.normal+'</span></td>'+
+      '<td style="text-align:center"><span class="badge b-proc">'+r.tinggi+'</span></td>'+
+      '<td style="text-align:center"><span class="badge b-late">'+r.mendesak+'</span></td>'+
+      '<td style="text-align:center;font-weight:600">'+r.total+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+(r.gaji>0?'var(--green-dark)':'var(--text3)')+';font-size:13px">'+fmtRp(r.gaji)+'</td></tr>';
+  });
+  html+='<tr style="background:var(--bg3);border-top:2px solid var(--border)">'+
+    '<td colspan="5" style="font-weight:700;font-size:12px;color:var(--text2)">TOTAL GAJI SEMUA TEKNISI</td>'+
+    '<td style="text-align:right;font-weight:700;font-size:14px;color:var(--green-dark)">'+fmtRp(totalGajiAll)+'</td></tr>';
+  html+='</tbody></table>';
+  document.getElementById('gaji-table').innerHTML=html;
+}
+
+// ============================================================
 // ANALITIK
 // ============================================================
 function renderAnalitik(){
@@ -1238,6 +1331,12 @@ function renderAnalitik(){
   var sorted=fin.slice().sort(function(a,b){return dayDiff(a.created_at,a.done_at)-dayDiff(b.created_at,b.done_at)});
   var maxD=Math.max.apply(null,sorted.map(function(p){return dayDiff(p.created_at,p.done_at)}).concat([1]));
   document.getElementById('ch-dur').innerHTML=sorted.slice(0,10).map(function(p){var d=dayDiff(p.created_at,p.done_at);return'<div class="bar-row"><div class="bar-label" style="min-width:90px">'+p.customer.slice(0,12)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(d/maxD*100)+'%"></div></div><div class="bar-val">'+d+'h</div></div>'}).join('')||'<div style="color:var(--text3);font-size:12px;padding:8px 0">Belum ada proyek selesai</div>';
+  // Init gaji bulan & render
+  var gb=document.getElementById('gaji-bulan');if(gb&&!gb.value){var nm=new Date();gb.value=nm.getFullYear()+'-'+String(nm.getMonth()+1).padStart(2,'0');}
+  renderGajiTeknisi();
+  // Init gaji bulan ke bulan ini & render
+  var gb=document.getElementById('gaji-bulan');if(gb&&!gb.value){var nm=new Date();gb.value=nm.getFullYear()+'-'+String(nm.getMonth()+1).padStart(2,'0');}
+  renderGajiTeknisi();
 }
 
 // ============================================================
