@@ -458,6 +458,19 @@ function sbUpsert(table, row) {
   });
 }
 
+// UPDATE (PATCH) fields pada row yang sudah ada berdasarkan id
+function sbUpdate(table, id, fields) {
+  var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id);
+  return fetch(url, {
+    method: 'PATCH',
+    headers: Object.assign({}, sbHeaders(), { 'Prefer': 'return=representation' }),
+    body: JSON.stringify(fields)
+  }).then(function(r) {
+    if(r.status === 204 || r.status === 200) return {ok:true};
+    return r.json().then(function(d){ return {ok:false, error:d}; });
+  });
+}
+
 // DELETE berdasarkan id
 function sbDelete(table, id) {
   var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id);
@@ -886,19 +899,41 @@ async function saveProject(){
   };
 
   try {
-    var res = await sbUpsert('projects', obj);
-    // Supabase returns array on success (may be empty []), error object on failure
-    if(Array.isArray(res)){
-      showToast('Proyek disimpan ke Supabase!');
-      closeModal('ov-proj');
-      await loadProjects();
+    var res;
+    if(currentEdit){
+      // UPDATE existing project via PATCH
+      var patchFields = {
+        customer: obj.customer, description: obj.description, tech: obj.tech,
+        priority: obj.priority, sched: obj.sched, target: obj.target,
+        cost: obj.cost, notes: obj.notes, followup: obj.followup,
+        timeline: obj.timeline
+      };
+      res = await sbUpdate('projects', currentEdit, patchFields);
+      if(res && res.ok !== false){
+        showToast('Proyek diperbarui!');
+        closeModal('ov-proj');
+        await loadProjects();
+      } else {
+        var errMsg = (res && res.error && res.error.message) ? res.error.message : JSON.stringify(res);
+        showToast('Gagal update: '+errMsg,'error');
+        console.error('saveProject PATCH error:', res);
+      }
     } else {
-      var errMsg = (res && res.message) ? res.message : JSON.stringify(res);
-      showToast('Gagal menyimpan: '+errMsg,'error');
-      console.error('saveProject error:', res);
+      // INSERT new project via POST (upsert)
+      res = await sbUpsert('projects', obj);
+      if(Array.isArray(res)){
+        showToast('Proyek disimpan ke Supabase!');
+        closeModal('ov-proj');
+        await loadProjects();
+      } else {
+        var errMsg2 = (res && res.message) ? res.message : JSON.stringify(res);
+        showToast('Gagal menyimpan: '+errMsg2,'error');
+        console.error('saveProject POST error:', res);
+      }
     }
   } catch(e){
     showToast('Gagal terhubung ke Supabase.','error');
+    console.error('saveProject error:',e);
   }
   btn.disabled=false;btn.textContent='Simpan';
 }
@@ -935,19 +970,25 @@ async function setStatus(id,status){
   p.timeline.push(act);
 
   try {
-    var updateObj = {
-      id: p.id, status: p.status,
+    var fields = {
+      status: p.status,
       done_at: p.done_at||null,
       timeline: JSON.stringify(p.timeline)
     };
-    await sbUpsert('projects', updateObj);
+    var res = await sbUpdate('projects', p.id, fields);
     hideLoading();
+    if(res && res.ok === false){
+      showToast('Gagal update: '+(res.error&&res.error.message||JSON.stringify(res.error)),'error');
+      // Rollback local state
+      await loadProjects();
+      renderTable();renderTable2();updateMetrics();
+      return;
+    }
     showToast('Status diperbarui: '+status);
-    // Reload dari Supabase agar sync dengan semua user
     await loadProjects();
     showDetail(id);
-  } catch(e){hideLoading();showToast('Gagal terhubung.','error');}
-  renderTable();renderTable2();updateMetrics();
+    renderTable();renderTable2();updateMetrics();
+  } catch(e){hideLoading();showToast('Gagal terhubung: '+e.message,'error');console.error('setStatus error:',e);}
 }
 
 async function deleteProject(id){
@@ -1194,9 +1235,17 @@ async function saveTech(){
   if(pin)obj.pin=pin;
   showLoading('Menyimpan pengguna...');
   try{
-    var res=await sbUpsert('technicians',obj);
+    var res;
+    if(currentTechEdit){
+      var techFields={name:name,role:newRole,spec:obj.spec,phone:obj.phone};
+      if(obj.pin)techFields.pin=obj.pin;
+      res=await sbUpdate('technicians',currentTechEdit,techFields);
+    } else {
+      res=await sbUpsert('technicians',obj);
+    }
     hideLoading();
-    if(Array.isArray(res)||(res&&res.id)){
+    var techOk=(res&&res.ok!==false)||(Array.isArray(res))||(res&&res.id);
+    if(techOk){
       closeModal('ov-tech');
       await loadTechs();
       renderTechList();
@@ -1206,7 +1255,7 @@ async function saveTech(){
         applyRoleUI();
       }
       showToast('Pengguna disimpan ('+{teknisi:'Teknisi',staff:'Staff/Kasir',admin:'Admin'}[newRole]+')');
-    }else showToast('Gagal: '+(res.message||'error'),'error');
+    }else showToast('Gagal: '+((res&&res.error&&res.error.message)||(res&&res.message)||'error'),'error');
   }catch(e){hideLoading();showToast('Gagal terhubung.','error');}
 }
 
