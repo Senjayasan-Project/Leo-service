@@ -825,6 +825,16 @@ function showPage(p){
   if(p==='teknisi'){loadTechs().then(renderTechList);}
 }
 
+function populateTecSelect(){
+  var techs=technicians.filter(function(t){return t.role==='teknisi'});
+  var fs=document.getElementById('f-tec');
+  if(!fs)return;
+  var cur=fs.value;
+  fs.innerHTML=techs.length
+    ? techs.map(function(t){return'<option value="'+t.name+'"'+(t.name===cur?' selected':'')+'>'+t.name+'</option>';}).join('')
+    : '<option value="">-- Belum ada teknisi --</option>';
+}
+
 function updateTechFilter(){
   var techs=technicians.filter(function(t){return t.role==='teknisi'});
   ['f-tech','f-tech2'].forEach(function(id){
@@ -832,8 +842,7 @@ function updateTechFilter(){
     var val=sel.value;
     sel.innerHTML='<option value="">Semua Teknisi</option>'+techs.map(function(t){return'<option value="'+t.name+'"'+(t.name===val?' selected':'')+'>'+t.name+'</option>'}).join('');
   });
-  var fs=document.getElementById('f-tec');
-  if(fs)fs.innerHTML=techs.map(function(t){return'<option value="'+t.name+'">'+t.name+'</option>'}).join('');
+  populateTecSelect();
 }
 function updateTechFilter2(){updateTechFilter();}
 
@@ -846,11 +855,14 @@ function getVisibleProjects(){
 // ============================================================
 // PROJECTS CRUD
 // ============================================================
-function openModal(id){
+async function openModal(id){
   if(!isAdmin()){showToast('Hanya Admin yang dapat mengelola proyek.','error');return;}
   currentEdit=id||null;
   document.getElementById('mtitle').textContent=id?'Edit Proyek':'Tambah Proyek Baru';
+  // Pastikan data teknisi sudah di-load sebelum populate dropdown
+  if(!technicians.length) await loadTechs();
   updateTechFilter();
+  populateTecSelect();
   if(id){
     var p=projects.find(function(x){return x.id===id});
     if(p){
