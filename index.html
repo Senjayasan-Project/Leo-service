@@ -77,6 +77,7 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:14px;color:v
 /* ============ APP SHELL ============ */
 #main-app{display:none;position:fixed;inset:0;flex-direction:column;background:var(--bg)}
 #main-app.visible{display:flex}
+#main-app.visible{display:flex}
 
 /* TOPBAR */
 .topbar{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);padding:0 16px;display:flex;align-items:center;gap:10px;height:var(--topbar-h);padding-top:var(--safe-top);flex-shrink:0;position:relative;z-index:10;box-shadow:0 2px 12px rgba(42,47,110,.3)}
@@ -1233,11 +1234,6 @@ function renderTechList(){
 // ============================================================
 // ANALITIK
 // ============================================================
-function updateGajiBulanan(techName, val){
-  gajiBulananMap[techName] = parseFloat(val)||0;
-  renderGajiTeknisi();
-}
-
 function renderGajiTeknisi(){
   var bulanEl=document.getElementById('gaji-bulan');if(!bulanEl)return;
   var period=bulanEl.value;
@@ -1248,8 +1244,8 @@ function renderGajiTeknisi(){
   var listEl=document.getElementById('gaji-individu-list');
   var tableEl=document.getElementById('gaji-table');
   if(!techs.length){
-    if(listEl)listEl.innerHTML='';
-    if(tableEl)tableEl.innerHTML='<div class="empty" style="padding:20px">Belum ada teknisi.</div>';
+    if(listEl)listEl.innerHTML='<div class="empty" style="padding:20px">Belum ada teknisi.</div>';
+    if(tableEl)tableEl.innerHTML='';
     return;
   }
   var rows=techs.map(function(t){
@@ -1272,58 +1268,78 @@ function renderGajiTeknisi(){
            bonus:bonus,bulanan:bulanan,totalGaji:totalGaji};
   }).sort(function(a,b){return b.totalGaji-a.totalGaji});
 
-  // Render individual cards
+  // Render individual cards using DOM (avoid quote escaping issues)
   if(listEl){
-    listEl.innerHTML=rows.map(function(r){
-      var safeId='gb-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
-      return'<div class="gaji-individu">'+
-        '<div class="gaji-individu-head">'+
-        '<div class="gaji-av" style="background:'+r.bg+';color:'+r.col+'">'+r.init+'</div>'+
-        '<div><div class="gaji-name">'+r.t.name+'</div>'+
-        '<div class="gaji-breakdown">'+(r.t.spec||'Teknisi')+'</div></div>'+
-        '</div>'+
-        '<div class="gaji-individu-body">'+
-        // Gaji bulanan input
-        '<div class="gaji-bulanan-row">'+
-        '<div class="gaji-bulanan-label">💼 Gaji Bulanan Pokok (Rp)</div>'+
-        '<input class="gaji-bulanan-input" type="number" id="'+safeId+'" '+
-          'value="'+(gajiBulananMap[r.t.name]||'')+'" placeholder="0" inputmode="numeric" '+
-          'oninput="gajiBulananMap[''+r.t.name+'']=(parseFloat(this.value)||0);renderGajiTeknisi()">'+
-        '</div>'+
-        // Breakdown bonus
-        '<div class="gaji-item">'+
-        '<div class="gaji-item-label">Normal ('+r.normal+' job)</div>'+
-        '<div class="gaji-item-val">'+fmtRp(r.normal*tarifN)+'</div></div>'+
-        '<div class="gaji-item">'+
-        '<div class="gaji-item-label">Tinggi ('+r.tinggi+' job)</div>'+
-        '<div class="gaji-item-val">'+fmtRp(r.tinggi*tarifT)+'</div></div>'+
-        '<div class="gaji-item">'+
-        '<div class="gaji-item-label">Mendesak ('+r.mendesak+' job)</div>'+
-        '<div class="gaji-item-val">'+fmtRp(r.mendesak*tarifM)+'</div></div>'+
-        '<div class="gaji-item">'+
-        '<div class="gaji-item-label">Bonus Job ('+r.total+' total)</div>'+
-        '<div class="gaji-item-val" style="color:var(--navy)">+'+fmtRp(r.bonus)+'</div></div>'+
-        // Total per orang
-        '<div class="gaji-item highlight">'+
-        '<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
-        '<div class="gaji-item-val">'+fmtRp(r.totalGaji)+'</div></div>'+
-        '</div></div>';
-    }).join('');
-    // Restore input values (after innerHTML replace, values reset)
+    listEl.innerHTML='';
     rows.forEach(function(r){
-      var safeId='gb-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
-      var el=document.getElementById(safeId);
-      if(el&&gajiBulananMap[r.t.name])el.value=gajiBulananMap[r.t.name];
+      var card=document.createElement('div');
+      card.className='gaji-individu';
+      var safeKey=r.t.name;
+
+      var head=document.createElement('div');
+      head.className='gaji-individu-head';
+      head.innerHTML='<div class="gaji-av" style="background:'+r.bg+';color:'+r.col+'">'+r.init+'</div>'+
+        '<div><div class="gaji-name">'+r.t.name+'</div>'+
+        '<div class="gaji-breakdown">'+(r.t.spec||'Teknisi')+'</div></div>';
+      card.appendChild(head);
+
+      var body=document.createElement('div');
+      body.className='gaji-individu-body';
+
+      // Gaji bulanan input row
+      var bulRow=document.createElement('div');
+      bulRow.className='gaji-bulanan-row';
+      var bulLabel=document.createElement('div');
+      bulLabel.className='gaji-bulanan-label';
+      bulLabel.textContent='Gaji Bulanan Pokok (Rp)';
+      var bulInput=document.createElement('input');
+      bulInput.className='gaji-bulanan-input';
+      bulInput.type='number';
+      bulInput.placeholder='0';
+      bulInput.setAttribute('inputmode','numeric');
+      bulInput.value=gajiBulananMap[safeKey]||'';
+      bulInput.dataset.techname=safeKey;
+      bulInput.addEventListener('input',function(){
+        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
+        renderGajiTeknisi();
+      });
+      bulRow.appendChild(bulLabel);
+      bulRow.appendChild(bulInput);
+      body.appendChild(bulRow);
+
+      // Breakdown items
+      var items=[
+        {label:'Normal ('+r.normal+' job)',val:fmtRp(r.normal*tarifN)},
+        {label:'Tinggi ('+r.tinggi+' job)',val:fmtRp(r.tinggi*tarifT)},
+        {label:'Mendesak ('+r.mendesak+' job)',val:fmtRp(r.mendesak*tarifM)},
+        {label:'Bonus Job ('+r.total+' total)',val:'+'+fmtRp(r.bonus),color:'var(--navy)'}
+      ];
+      items.forEach(function(it){
+        var d=document.createElement('div');d.className='gaji-item';
+        d.innerHTML='<div class="gaji-item-label">'+it.label+'</div>'+
+          '<div class="gaji-item-val"'+(it.color?' style="color:'+it.color+'"':'')+'>'+it.val+'</div>';
+        body.appendChild(d);
+      });
+
+      // Total highlight
+      var tot=document.createElement('div');
+      tot.className='gaji-item highlight';
+      tot.innerHTML='<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
+        '<div class="gaji-item-val">'+fmtRp(r.totalGaji)+'</div>';
+      body.appendChild(tot);
+
+      card.appendChild(body);
+      listEl.appendChild(card);
     });
   }
 
-  // Summary table at bottom
+  // Summary table
   var grandTotal=rows.reduce(function(s,r){return s+r.totalGaji},0);
   if(tableEl){
-    tableEl.innerHTML='<div style="background:var(--bg3);border-radius:10px;overflow:hidden;border:1px solid var(--border)">'+
+    var sumHtml='<div style="background:var(--bg3);border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-top:8px">'+
       '<div style="padding:10px 14px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Ringkasan Penggajian</div>'+
       rows.map(function(r){
-        return'<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">'+
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">'+
           '<div class="gaji-av" style="background:'+r.bg+';color:'+r.col+';width:26px;height:26px;font-size:10px">'+r.init+'</div>'+
           '<div style="flex:1"><div style="font-size:12px;font-weight:700">'+r.t.name+'</div>'+
           '<div style="font-size:10px;color:var(--text3)">Pokok '+fmtRp(r.bulanan)+' + Bonus '+fmtRp(r.bonus)+'</div></div>'+
@@ -1332,8 +1348,11 @@ function renderGajiTeknisi(){
       '<div class="gaji-total-row"><div style="font-size:12px;font-weight:800;color:rgba(255,255,255,.8)">TOTAL PENGGAJIAN</div>'+
       '<div style="font-size:16px;font-weight:800;color:#fff">'+fmtRp(grandTotal)+'</div></div>'+
       '</div>';
+    tableEl.innerHTML=sumHtml;
   }
 }
+
+
 
 function renderAnalitik(){
   var fin=projects.filter(function(p){return p.done_at});
