@@ -1300,7 +1300,7 @@ function renderGajiTeknisi(){
       bulInput.value=gajiBulananMap[safeKey]||'';
       bulInput.dataset.techname=safeKey;
       bulInput.addEventListener('input',function(){
-        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
+        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0000000000;
         renderGajiTeknisi();
       });
       bulRow.appendChild(bulLabel);
