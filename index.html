@@ -1234,7 +1234,7 @@ function renderTechList(){
 // ============================================================
 // ANALITIK
 // ============================================================
-/*function updateGajiSummary(){
+function updateGajiSummary(){
   // Baca nilai dari DOM input langsung (bukan dari map yang mungkin stale)
   document.querySelectorAll('.gaji-bulanan-input').forEach(function(inp){
     if(inp.dataset.techname) gajiBulananMap[inp.dataset.techname]=parseFloat(inp.value)||0;
@@ -1284,7 +1284,7 @@ function renderTechList(){
         '<div style="font-size:16px;font-weight:800;color:#fff">'+fmtRp(grandTotal)+'</div>'+
       '</div></div>';
   }
-}*/
+}
   
 function renderGajiTeknisi(){
   var bulanEl=document.getElementById('gaji-bulan');if(!bulanEl)return;
@@ -1299,8 +1299,7 @@ function renderGajiTeknisi(){
     if(listEl)listEl.innerHTML='<div class="empty" style="padding:20px">Belum ada teknisi.</div>';
     if(tableEl)tableEl.innerHTML='';
     return;
-  }
-      }
+  }    
   var rows=techs.map(function(t){
     var ps=projects.filter(function(p){
       if(p.tech!==t.name)return false;
