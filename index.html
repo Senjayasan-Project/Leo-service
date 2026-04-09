@@ -1234,6 +1234,60 @@ function renderTechList(){
 // ============================================================
 // ANALITIK
 // ============================================================
+
+
+function updateGajiSummary(){
+  // Baca nilai dari DOM input langsung (bukan dari map yang mungkin stale)
+  document.querySelectorAll('.gaji-bulanan-input').forEach(function(inp){
+    if(inp.dataset.techname) gajiBulananMap[inp.dataset.techname]=parseFloat(inp.value)||0;
+  });
+  var tarifN=parseFloat(document.getElementById('tarif-normal').value)||50000;
+  var tarifT=parseFloat(document.getElementById('tarif-tinggi').value)||75000;
+  var tarifM=parseFloat(document.getElementById('tarif-mendesak').value)||100000;
+  var period=document.getElementById('gaji-bulan')?document.getElementById('gaji-bulan').value:'';
+  var techs=technicians.filter(function(t){return t.role==='teknisi'});
+  var rows=techs.map(function(t){
+    var ps=projects.filter(function(p){
+      if(p.tech!==t.name)return false;
+      if(p.status!=='Selesai'&&p.status!=='Lunas')return false;
+      if(period&&p.done_at&&!p.done_at.startsWith(period))return false;
+      if(!p.done_at)return false;return true;
+    });
+    var normal=ps.filter(function(p){return(p.priority||'Normal')==='Normal'}).length;
+    var tinggi=ps.filter(function(p){return p.priority==='Tinggi'}).length;
+    var mendesak=ps.filter(function(p){return p.priority==='Mendesak'}).length;
+    var bonus=(normal*tarifN)+(tinggi*tarifT)+(mendesak*tarifM);
+    var bulanan=gajiBulananMap[t.name]||0;
+    var totalGaji=bulanan+bonus;
+    var init=t.name.split(' ').map(function(w){return w[0]}).join('').slice(0,2).toUpperCase();
+    return{t:t,init:init,bg:roleBg[t.role]||'#eef',col:roleCol[t.role]||'#333',
+           bonus:bonus,bulanan:bulanan,totalGaji:totalGaji};
+  });
+  // Update total per kartu tanpa rebuild DOM
+  rows.forEach(function(r){
+    var el=document.getElementById('gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-'));
+    if(el) el.textContent=fmtRp(r.totalGaji);
+  });
+  // Rebuild hanya tabel ringkasan
+  var grandTotal=rows.reduce(function(s,r){return s+r.totalGaji},0);
+  var tableEl=document.getElementById('gaji-table');
+  if(tableEl){
+    tableEl.innerHTML='<div style="background:var(--bg3);border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-top:8px">'+
+      '<div style="padding:10px 14px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Ringkasan Penggajian</div>'+
+      rows.map(function(r){
+        return'<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">'+
+          '<div class="gaji-av" style="background:'+r.bg+';color:'+r.col+';width:26px;height:26px;font-size:10px">'+r.init+'</div>'+
+          '<div style="flex:1"><div style="font-size:12px;font-weight:700">'+r.t.name+'</div>'+
+          '<div style="font-size:10px;color:var(--text3)">Pokok '+fmtRp(r.bulanan)+' + Bonus '+fmtRp(r.bonus)+'</div></div>'+
+          '<div style="font-size:13px;font-weight:800;color:var(--navy)">'+fmtRp(r.totalGaji)+'</div></div>';
+      }).join('')+
+      '<div class="gaji-total-row">'+
+        '<div style="font-size:12px;font-weight:800;color:rgba(255,255,255,.8)">TOTAL PENGGAJIAN</div>'+
+        '<div style="font-size:16px;font-weight:800;color:#fff">'+fmtRp(grandTotal)+'</div>'+
+      '</div></div>';
+  }
+}
+  
 function renderGajiTeknisi(){
   var bulanEl=document.getElementById('gaji-bulan');if(!bulanEl)return;
   var period=bulanEl.value;
@@ -1247,7 +1301,11 @@ function renderGajiTeknisi(){
     if(listEl)listEl.innerHTML='<div class="empty" style="padding:20px">Belum ada teknisi.</div>';
     if(tableEl)tableEl.innerHTML='';
     return;
-  }
+tot.className='gaji-item highlight';
+// TAMBAHKAN BARIS INI:
+tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
+tot.innerHTML='<div class="gaji-item-label">Total Gaji ...
+      }
   var rows=techs.map(function(t){
     var ps=projects.filter(function(p){
       if(p.tech!==t.name)return false;
@@ -1305,9 +1363,9 @@ function renderGajiTeknisi(){
         renderGajiTeknisi();
       });*/
 
-      bulInput.addEventListener('input',function(){
+     bulInput.addEventListener('input',function(){
   gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
-  renderGajiRingkasan();
+  updateGajiSummary(); // ← FUNGSI BARU
 });
       
       bulRow.appendChild(bulLabel);
