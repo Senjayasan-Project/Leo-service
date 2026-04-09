@@ -1299,10 +1299,15 @@ function renderGajiTeknisi(){
       bulInput.setAttribute('inputmode','numeric');
       bulInput.value=gajiBulananMap[safeKey]||'';
       bulInput.dataset.techname=safeKey;
-      bulInput.addEventListener('input',function(){
-        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0000000000;
+      /*bulInput.addEventListener('input',function(){
+        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
         renderGajiTeknisi();
-      });
+      });*/
+
+          bulInput.addEventListener('input',function(){
+      gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
+      renderGajiRingkasan();};
+      
       bulRow.appendChild(bulLabel);
       bulRow.appendChild(bulInput);
       body.appendChild(bulRow);
