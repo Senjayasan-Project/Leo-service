@@ -1234,9 +1234,7 @@ function renderTechList(){
 // ============================================================
 // ANALITIK
 // ============================================================
-
-
-function updateGajiSummary(){
+/*function updateGajiSummary(){
   // Baca nilai dari DOM input langsung (bukan dari map yang mungkin stale)
   document.querySelectorAll('.gaji-bulanan-input').forEach(function(inp){
     if(inp.dataset.techname) gajiBulananMap[inp.dataset.techname]=parseFloat(inp.value)||0;
@@ -1286,7 +1284,7 @@ function updateGajiSummary(){
         '<div style="font-size:16px;font-weight:800;color:#fff">'+fmtRp(grandTotal)+'</div>'+
       '</div></div>';
   }
-}
+}*/
   
 function renderGajiTeknisi(){
   var bulanEl=document.getElementById('gaji-bulan');if(!bulanEl)return;
@@ -1386,7 +1384,7 @@ function renderGajiTeknisi(){
     // Total highlight
       var tot=document.createElement('div');
       tot.className='gaji-item highlight';
-      tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
+      //tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
       tot.innerHTML='<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
         '<div class="gaji-item-val" id="gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-')+'">'+fmtRp(r.totalGaji)+'</div>';
       body.appendChild(tot);
