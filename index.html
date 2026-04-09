@@ -1383,12 +1383,12 @@ function renderGajiTeknisi(){
         body.appendChild(d);
       });
 
-      // Total highlight
+    // Total highlight
       var tot=document.createElement('div');
       tot.className='gaji-item highlight';
       tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
       tot.innerHTML='<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
-        '<div class="gaji-item-val">'+fmtRp(r.totalGaji)+'</div>';
+        '<div class="gaji-item-val" id="gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-')+'">'+fmtRp(r.totalGaji)+'</div>';
       body.appendChild(tot);
 
       card.appendChild(body);
