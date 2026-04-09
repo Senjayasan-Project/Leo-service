@@ -1301,10 +1301,7 @@ function renderGajiTeknisi(){
     if(listEl)listEl.innerHTML='<div class="empty" style="padding:20px">Belum ada teknisi.</div>';
     if(tableEl)tableEl.innerHTML='';
     return;
-tot.className='gaji-item highlight';
-// TAMBAHKAN BARIS INI:
-tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
-tot.innerHTML='<div class="gaji-item-label">
+  }
       }
   var rows=techs.map(function(t){
     var ps=projects.filter(function(p){
@@ -1388,6 +1385,7 @@ tot.innerHTML='<div class="gaji-item-label">
 
       // Total highlight
       var tot=document.createElement('div');
+      tot.className='gaji-item highlight';
       tot.className='gaji-item highlight';
       tot.innerHTML='<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
         '<div class="gaji-item-val">'+fmtRp(r.totalGaji)+'</div>';
