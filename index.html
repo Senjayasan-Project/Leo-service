@@ -713,21 +713,61 @@ function genId(){return Date.now().toString(36)+Math.random().toString(36).slice
 
 // ── FOTO FUNCTIONS ──
 function openFotoOptions(){
-  // Show choice: camera or gallery
-  var sheet=document.createElement('div');
-  sheet.id='foto-choice-sheet';
-  sheet.style.cssText='position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--bg2);border-radius:20px 20px 0 0;z-index:500;padding:20px 20px calc(20px + var(--safe-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.2)';
-  sheet.innerHTML='<div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px"></div>'+
-    '<div style="font-size:15px;font-weight:800;margin-bottom:14px">Tambah Foto</div>'+
-    '<div style="display:flex;flex-direction:column;gap:10px">'+
-    '<button onclick="document.getElementById(\"foto-cam-input\").click();closeFotoChoice()" style="padding:14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg3);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left">📷 Foto langsung (Kamera)</button>'+
-    '<button onclick="document.getElementById(\"foto-file-input\").click();closeFotoChoice()" style="padding:14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg3);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left">🖼 Pilih dari Galeri</button>'+
-    '<button onclick="closeFotoChoice()" style="padding:12px;border:none;border-radius:12px;background:var(--bg3);font-size:14px;color:var(--text2);font-family:inherit;cursor:pointer">Batal</button>'+
-    '</div>';
   var overlay=document.createElement('div');
   overlay.id='foto-choice-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:499;backdrop-filter:blur(2px)';
-  overlay.onclick=closeFotoChoice;
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:499;backdrop-filter:blur(2px)';
+
+  var sheet=document.createElement('div');
+  sheet.id='foto-choice-sheet';
+  sheet.style.cssText='position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--bg2);border-radius:20px 20px 0 0;z-index:500;padding:20px 20px calc(24px + var(--safe-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.25)';
+
+  // Handle bar
+  var handle=document.createElement('div');
+  handle.style.cssText='width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px';
+  sheet.appendChild(handle);
+
+  // Title
+  var title=document.createElement('div');
+  title.style.cssText='font-size:15px;font-weight:800;margin-bottom:14px';
+  title.textContent='Tambah Foto';
+  sheet.appendChild(title);
+
+  var wrap=document.createElement('div');
+  wrap.style.cssText='display:flex;flex-direction:column;gap:10px';
+
+  // Camera button
+  var btnCam=document.createElement('button');
+  btnCam.type='button';
+  btnCam.style.cssText='padding:14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg3);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;width:100%';
+  btnCam.textContent='📷 Foto langsung (Kamera)';
+  btnCam.addEventListener('click', function(){
+    closeFotoChoice();
+    setTimeout(function(){ document.getElementById('foto-cam-input').click(); }, 150);
+  });
+
+  // Gallery button
+  var btnGal=document.createElement('button');
+  btnGal.type='button';
+  btnGal.style.cssText='padding:14px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg3);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;width:100%';
+  btnGal.textContent='🖼 Pilih dari Galeri';
+  btnGal.addEventListener('click', function(){
+    closeFotoChoice();
+    setTimeout(function(){ document.getElementById('foto-file-input').click(); }, 150);
+  });
+
+  // Cancel button
+  var btnCnl=document.createElement('button');
+  btnCnl.type='button';
+  btnCnl.style.cssText='padding:12px;border:none;border-radius:12px;background:var(--bg3);font-size:14px;color:var(--text2);font-family:inherit;cursor:pointer;width:100%';
+  btnCnl.textContent='Batal';
+  btnCnl.addEventListener('click', closeFotoChoice);
+
+  wrap.appendChild(btnCam);
+  wrap.appendChild(btnGal);
+  wrap.appendChild(btnCnl);
+  sheet.appendChild(wrap);
+
+  overlay.addEventListener('click', closeFotoChoice);
   document.body.appendChild(overlay);
   document.body.appendChild(sheet);
 }
@@ -1562,7 +1602,6 @@ function renderGajiTeknisi(){
       // Total highlight
       var tot=document.createElement('div');
       tot.className='gaji-item highlight';
-      tot.id='gb-val-'+r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
       var safeName=r.t.name.replace(/[^a-zA-Z0-9]/g,'-');
       tot.id='gb-tot-'+safeName;
       tot.innerHTML='<div class="gaji-item-label">Total Gaji '+r.t.name.split(' ')[0]+'</div>'+
