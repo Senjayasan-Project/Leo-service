@@ -1004,8 +1004,18 @@ function openUserMenu(){
 // ============================================================
 async function loadTechs(){
   try{
-    var data=await sbGet('technicians','select=id,name,role,spec,phone,pin&order=name.asc');
-    if(Array.isArray(data)){technicians=data;updateTechFilter();if(document.getElementById('page-teknisi').classList.contains('active'))renderTechList();}
+    var data=await sbGet('technicians','select=id,name,role,spec,phone,pin,gaji_bulanan&order=name.asc');
+    if(Array.isArray(data)){
+      technicians=data;
+      // Sync gaji_bulanan dari DB ke map (tidak override nilai yang sudah diketik user)
+      data.forEach(function(t){
+        if((t.gaji_bulanan||t.gaji_bulanan===0)&&!gajiBulananMap[t.name]){
+          gajiBulananMap[t.name]=parseFloat(t.gaji_bulanan)||0;
+        }
+      });
+      updateTechFilter();
+      if(document.getElementById('page-teknisi').classList.contains('active'))renderTechList();
+    }
   }catch(e){console.warn('loadTechs error',e);}
 }
 
@@ -1463,6 +1473,30 @@ function renderTechList(){
 // ============================================================
 // ANALITIK
 // ============================================================
+// ── Simpan gaji bulanan ke Supabase ──
+function saveGajiBulanan(techName,nominal){
+  var tech=technicians.find(function(t){return t.name===techName;});
+  if(!tech)return;
+  sbUpdate('technicians',tech.id,{gaji_bulanan:nominal||0})
+    .then(function(res){
+      if(res&&res.ok===false){
+        console.warn('Gagal simpan gaji:',res.error);
+      } else {
+        // Update local technicians array
+        tech.gaji_bulanan=nominal||0;
+        // Show subtle saved indicator
+        var inputs=document.querySelectorAll('.gaji-bulanan-input');
+        inputs.forEach(function(inp){
+          if(inp.dataset.techname===techName){
+            inp.style.color='var(--green)';
+            setTimeout(function(){inp.style.color='var(--blue)';},1200);
+          }
+        });
+      }
+    })
+    .catch(function(e){console.warn('saveGajiBulanan error',e);});
+}
+
 function updateGajiSummary(){
   document.querySelectorAll('.gaji-bulanan-input').forEach(function(inp){
     if(inp.dataset.techname) gajiBulananMap[inp.dataset.techname]=parseFloat(inp.value)||0;
@@ -1575,11 +1609,23 @@ function renderGajiTeknisi(){
       bulInput.type='number';
       bulInput.placeholder='0';
       bulInput.setAttribute('inputmode','numeric');
-      bulInput.value=gajiBulananMap[safeKey]||'';
+      // Load dari map (hasil input sebelumnya) atau dari DB
+      var gajiDb=0;
+      var techObj=technicians.find(function(t){return t.name===safeKey;});
+      if(techObj&&techObj.gaji_bulanan)gajiDb=parseFloat(techObj.gaji_bulanan)||0;
+      var gajiVal=gajiBulananMap[safeKey]||gajiDb||0;
+      if(gajiVal)gajiBulananMap[safeKey]=gajiVal; // sync map
+      bulInput.value=gajiVal||'';
       bulInput.dataset.techname=safeKey;
       bulInput.addEventListener('input',function(){
-        gajiBulananMap[this.dataset.techname]=parseFloat(this.value)||0;
+        var techName=this.dataset.techname;
+        gajiBulananMap[techName]=parseFloat(this.value)||0;
         updateGajiSummary();
+        // Debounced save to DB
+        clearTimeout(window['_gajiTimer_'+techName]);
+        window['_gajiTimer_'+techName]=setTimeout(function(){
+          saveGajiBulanan(techName,gajiBulananMap[techName]);
+        },800);
       });
       bulRow.appendChild(bulLabel);
       bulRow.appendChild(bulInput);
